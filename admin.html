@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Darts Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="admin-page">
+  <div class="container">
+    <h1>Darts Admin</h1>
+
+    <label>Round name:</label>
+    <input type="text" id="round" placeholder="e.g. Quarter Finals">
+
+    <label>First to:</label>
+    <input type="number" id="firstTo" placeholder="e.g. 6">
+
+    <div class="match-count">
+      <label>How many matches?</label>
+      <input type="number" id="numMatches" placeholder="e.g. 16">
+      <button id="generateMatches">Generate Matches</button>
+    </div>
+
+    <h3>Enter matches</h3>
+    <div id="matches"></div>
+
+    <button id="save">Save to Google Sheet</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // 🔗 Your Google Apps Script Web App URL:
+    const API_URL = "https://script.google.com/macros/s/AKfycbxRWQVa_Bdov8yvtPOzDBM0umxN_kyN2o2k49uhIpZTirxocGNUap0KZSYvTkncPUoXkA/exec";
+    const matchesDiv = document.getElementById("matches");
+    let playerList = [];
+
+    // Load players from the Google Sheet "Players" tab
+    async function loadPlayers() {
+      try {
+        const res = await fetch(`${API_URL}?action=getPlayers`);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        playerList = await res.json();
+
+        if (playerList.length === 0) {
+          matchesDiv.innerHTML = "<p style='color:red'>⚠️ No players found in the 'Players' sheet.</p>";
+        } else {
+          console.log("✅ Loaded players:", playerList);
+        }
+      } catch (err) {
+        console.error("❌ Error loading players:", err);
+        matchesDiv.innerHTML = "<p style='color:red'>Error fetching player list. Check your script deployment.</p>";
+      }
+    }
+
+    // Create dropdowns for each match
+    document.getElementById("generateMatches").onclick = () => {
+      const num = parseInt(document.getElementById("numMatches").value);
+      matchesDiv.innerHTML = "";
+
+      if (!num || num < 1) {
+        alert("Enter a valid number of matches");
+        return;
+      }
+
+      for (let i = 1; i <= num; i++) {
+        const row = document.createElement("div");
+        row.classList.add("match-row");
+        row.innerHTML = `
+          <label class="match-label">Match ${i}</label>
+          <div class="match-inputs">
+            <select class="p1">${playerList.map(p => `<option value="${p}">${p}</option>`).join("")}</select>
+            <span class="vs">vs</span>
+            <select class="p2">${playerList.map(p => `<option value="${p}">${p}</option>`).join("")}</select>
+          </div>
+        `;
+        matchesDiv.appendChild(row);
+      }
+    };
+
+    // Save matches to Google Sheet
+    document.getElementById("save").onclick = async () => {
+      const firstTo = document.getElementById("firstTo").value;
+      const round = document.getElementById("round").value;
+
+      if (!round || !firstTo) {
+        alert("Please fill out both 'Round name' and 'First to'");
+        return;
+      }
+
+      const matchRows = matchesDiv.querySelectorAll(".match-row");
+      const matches = Array.from(matchRows).map(r => ({
+        player1: r.querySelector(".p1").value,
+        player2: r.querySelector(".p2").value
+      }));
+
+      if (matches.length === 0) {
+        alert("Please generate at least one match");
+        return;
+      }
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "saveMatches", matches, firstTo, round })
+      });
+
+      const json = await res.json();
+      document.getElementById("status").textContent = json.success ? "✅ Matches saved!" : "❌ Error saving";
+    };
+
+    // Load player list on page load
+    loadPlayers();
+  </script>
+  </div>
+</body>
+</html>

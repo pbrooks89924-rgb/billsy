@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Darts Predictions</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="index-page">
+<div class="container">
+  <h1 id="roundTitle">Loading Round...</h1>
+
+  <label for="nameSelect">Your Name:</label>
+  <select id="nameSelect">
+    <option>Loading names...</option>
+  </select>
+
+  <div id="newNameContainer" style="display:none;">
+    <label>Enter new name:</label>
+    <input type="text" id="newNameInput" placeholder="Enter your name">
+  </div>
+
+  <form id="predictionsForm"></form>
+
+  <button id="submitPredictions">Submit Predictions</button>
+  <div id="status"></div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbxRWQVa_Bdov8yvtPOzDBM0umxN_kyN2o2k49uhIpZTirxocGNUap0KZSYvTkncPUoXkA/exec";
+
+const form = document.getElementById("predictionsForm");
+const nameSelect = document.getElementById("nameSelect");
+const newNameContainer = document.getElementById("newNameContainer");
+const newNameInput = document.getElementById("newNameInput");
+const submitBtn = document.getElementById("submitPredictions");
+const statusDiv = document.getElementById("status");
+
+let firstTo = 0;
+let matches = [];
+let allNames = [];
+
+window.onload = async () => {
+  await loadNames();
+  await loadMatches();
+};
+
+async function loadNames() {
+  try {
+    // Add the fetch options object as the second argument
+    const res = await fetch(`${API_URL}?action=getUserNames`);
+    
+    // Check for non-OK status codes (e.g., 404, 500)
+    if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const data = await res.json();
+    allNames = data.names || [];
+
+    nameSelect.innerHTML = `<option value="">Select your name</option>`;
+    allNames.forEach(n => {
+      const opt = document.createElement("option");
+      opt.value = n;
+      opt.textContent = n;
+      nameSelect.appendChild(opt);
+    });
+
+    const addNew = document.createElement("option");
+    addNew.value = "add_new";
+    addNew.textContent = "➕ Add New Name";
+    nameSelect.appendChild(addNew);
+
+    if (allNames.length === 0) {
+      nameSelect.value = "add_new";
+      newNameContainer.style.display = "block";
+    }
+  } catch(e) {
+    console.error(e);
+    nameSelect.innerHTML = `<option>Error loading names</option>`;
+  }
+}
+
+async function loadMatches() {
+  try {
+    const res = await fetch(`${API_URL}?action=getMatches`);
+    const data = await res.json();
+    firstTo = parseInt(data.firstTo, 10);
+    matches = data.matches;
+
+    document.getElementById("roundTitle").textContent = (data.round || "Round") + " Predictions";
+
+    form.innerHTML = "";
+
+    matches.forEach((m,i) => {
+      const div = document.createElement("div");
+      div.className = "match-row";
+      div.innerHTML = `
+        <span class="match-label">${m.player1}</span>
+        <select id="match${i}">
+          ${generateScoreOptions()}
+        </select>
+        <span class="match-label">${m.player2}</span>
+      `;
+      form.appendChild(div);
+    });
+  } catch(e) {
+    console.error(e);
+    document.getElementById("roundTitle").textContent = "⚠️ Error loading round";
+  }
+}
+
+function generateScoreOptions() {
+  const options = [];
+  for(let i=0;i<firstTo;i++) options.push(`<option value="${firstTo}-${i}">${firstTo}-${i}</option>`);
+  for(let i=0;i<firstTo;i++) options.push(`<option value="${i}-${firstTo}">${i}-${firstTo}</option>`);
+  return options.join("");
+}
+
+nameSelect.addEventListener("change", () => {
+  newNameContainer.style.display = nameSelect.value === "add_new" ? "block" : "none";
+});
+
+submitBtn.addEventListener("click", async e => {
+  e.preventDefault();
+  let name = nameSelect.value;
+  if(name==="add_new") {
+    name = newNameInput.value.trim();
+    if(!name) return alert("Please enter a name");
+    if(allNames.includes(name)) return alert("That name already exists!");
+  }
+  if(!name) return alert("Select or enter your name");
+
+  const predictions = matches.map((_,i)=>document.getElementById(`match${i}`).value);
+  statusDiv.textContent = "⏳ Submitting...";
+  submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ action: "savePredictions", name, predictions })
+    });
+    const json = await res.json();
+    if(json.success){
+      statusDiv.textContent = "✅ Predictions submitted!";
+      if(nameSelect.value==="add_new"){
+        await loadNames();
+        nameSelect.value = name;
+        newNameInput.value="";
+        newNameContainer.style.display="none";
+      }
+    } else {
+      statusDiv.textContent = "❌ Failed: "+(json.error||"unknown error");
+    }
+  } catch(err){
+    console.error(err);
+    statusDiv.textContent = "⚠️ Failed to submit predictions";
+  } finally { submitBtn.disabled=false; }
+});
+</script>
+</div>
+</body>
+</html>
