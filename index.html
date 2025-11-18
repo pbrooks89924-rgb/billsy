@@ -28,7 +28,7 @@
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwwhuADd0Y9s2IZEAujaihgaPFTrNNmNK8pzRWILtjFeFt92Fi5SnU9vVZ3wDEKkvVvXA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyfXPrqiYGLQdw_g8VTLhT3nElDqetjGEeTZRAdLim7G76Bh-mfUmIiR8e-9aX00kmA-A/exec";
 
 const form = document.getElementById("predictionsForm");
 const nameSelect = document.getElementById("nameSelect");
@@ -139,7 +139,6 @@ submitBtn.addEventListener("click", async e => {
   try {
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ action: "savePredictions", name, predictions })
     });
     const json = await res.json();
