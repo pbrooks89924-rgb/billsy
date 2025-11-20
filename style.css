@@ -113,6 +113,11 @@ button:disabled {
 /* 5. INDEX PAGE SPECIFIC STYLES (Darts Form) - FINAL ALIGNMENT FIX */
 /* ------------------------------------------- */
 
+body.admin-page {
+    background-image: none; /* Removes the image */
+    background-color: #f0f0f0; /* Sets a clean, solid background color */
+}
+
 /* Override the global container background here to make the index page form dark */
 .index-page .container {
     /* *** INCREASED TRANSLUCENCY (0.8 opacity) *** */
